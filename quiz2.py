@@ -1,10 +1,13 @@
 from docx import Document
 from docx.text.paragraph import Paragraph
 from docx.oxml.xmlchemy import OxmlElement
+from docx.text.run import Run
+from docx.oxml.text.run import CT_R
 from docx.shared import Inches, Pt
 import random
 from docx.enum.text import WD_LINE_SPACING
 import argparse
+import copy
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create a ArcHydro schema')
@@ -87,38 +90,44 @@ if __name__ == '__main__':
         font.name = 'Times New Roman'
         font.size = Pt(13)
         for _idx, question in enumerate(lst_idx_questions):
-            # print(doc.paragraphs[question].text)
-            _p = quiz.add_paragraph("", style=style)
-            _p.paragraph_format.space_before = Pt(0)
-            _p.paragraph_format.space_after = Pt(0)
-            _p.paragraph_format.line_spacing = 1
-            run = _p.add_run("Câu "+str(_idx+1)+": ")
-            run.bold = True
-            for run in doc.paragraphs[question].runs:
-                _r = _p.add_run(run.text)
-                _r.bold = run.bold
-                _r.italic = run.italic
-                _r.underline = run.underline
-                _r.font.color.rgb = run.font.color.rgb
-                _r.style.name = run.style.name
-            _p.paragraph_format.alignment = _p.paragraph_format.alignment
+            doc2 = copy.deepcopy(doc)
+            quiz.element.body.append(doc2.element.body[question])
+            if len(quiz.paragraphs[-1].runs) > 0:
+                new_run_element = quiz.paragraphs[-1]._element._new_r()
+                _current_run = quiz.paragraphs[-1].runs[0]
+                _current_run._element.addprevious(
+                    new_run_element)
+                new_run = Run(new_run_element, _current_run._parent)
+                new_run.text = "Câu " + str(_idx+1)+": "
+                new_run.bold = True
             for _idx2, answer in enumerate(lst_idx_answers[question]):
-                _p = quiz.add_paragraph(ans_idx[_idx2], style=style)
-                _p.paragraph_format.space_before = Pt(0)
-                _p.paragraph_format.space_after = Pt(0)
-                _p.paragraph_format.line_spacing = 1
-                for run in doc.paragraphs[answer].runs:
-                    _r = _p.add_run(run.text)
-                    _r.bold = run.bold
-                    _r.italic = run.italic
-                    _r.underline = run.underline
-                    _r.font.color.rgb = run.font.color.rgb
-                    _r.style.name = run.style.name
-                _p.paragraph_format.alignment = _p.paragraph_format.alignment
+                doc3 = copy.deepcopy(doc)
+                quiz.element.body.append(doc3.element.body[answer])
+                if len(quiz.paragraphs[-1].runs) > 0:
+                    new_run_element = quiz.paragraphs[-1]._element._new_r()
+                    _current_run = quiz.paragraphs[-1].runs[0]
+                    _current_run._element.addprevious(
+                        new_run_element)
+                    new_run = Run(new_run_element, _current_run._parent)
+                    new_run.text = ans_idx[_idx2]
+            del doc2, doc3
         for _idx3, _c in enumerate(_correct):
             row = table.rows[_idx3+1]
             row.cells[idx+1].text = _c
         print("answered: ", _correct)
-        quiz.save(str(idx)+".docx")
+        style = quiz.styles['Normal']
+        font = style.font
+        font.name = 'Times New Roman'
+        font.size = Pt(13)
+        for _p in quiz.paragraphs:
+            _p.paragraph_format.space_before = Pt(0)
+            _p.paragraph_format.space_after = Pt(0)
+            _p.paragraph_format.line_spacing = 1
+            _p.style = style
+            for _r in _p.runs:
+                _font = _r.font
+                _font.name = 'Times New Roman'
+                _font.size = Pt(13)
+        quiz.save(str(idx+1)+".docx")
 
     doc_answered.save("Dap-an.docx")
