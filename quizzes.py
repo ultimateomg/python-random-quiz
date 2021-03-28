@@ -8,6 +8,22 @@ import random
 from docx.enum.text import WD_LINE_SPACING
 import argparse
 import copy
+from io import BytesIO
+from docx.enum.shape import WD_INLINE_SHAPE
+import shutil
+import zipfile
+import os
+import fnmatch
+
+
+def zip_directory(folder_path, zip_path):
+    with zipfile.ZipFile(zip_path, mode='w') as zipf:
+        len_dir_path = len(folder_path)
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                zipf.write(file_path, file_path[len_dir_path:])
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create a ArcHydro schema')
@@ -19,7 +35,11 @@ if __name__ == '__main__':
     lst_idx_questions = [0]
     lst_idx_answers = {0: []}
     doc = Document(args.filename)
-
+    out_dir1 = "temporary/tmp1"
+    with zipfile.ZipFile(args.filename, 'r') as zip_ref:
+        zip_ref.extractall(out_dir1)
+    media_path_1 = os.path.join(out_dir1, "word", "media")
+    _rels_1 = os.path.join(out_dir1, "word", "_rels")
     last_idx = 0
     for i in range(len(doc.paragraphs)):
         t = doc.paragraphs[i].text
@@ -129,5 +149,17 @@ if __name__ == '__main__':
                 _font.name = 'Times New Roman'
                 _font.size = Pt(13)
         quiz.save(str(idx+1)+".docx")
+        out_dir2 = "temporary/tmp2"
+        with zipfile.ZipFile(str(idx+1)+".docx", 'r') as zip_ref:
+            zip_ref.extractall(out_dir2)
 
+        media_path_2 = os.path.join(out_dir2, "word", "media")
+        _rels_2 = os.path.join(out_dir2, "word", "_rels")
+        if os.path.exists(_rels_2):
+            shutil.rmtree(_rels_2)
+        if os.path.exists(media_path_2):
+            shutil.rmtree(media_path_2)
+        shutil.copytree(media_path_1, media_path_2)
+        shutil.copytree(_rels_1, _rels_2)
+        zip_directory(out_dir2, str(idx+1)+".docx")
     doc_answered.save("Dap-an.docx")
